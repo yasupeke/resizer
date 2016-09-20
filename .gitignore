@@ -1,0 +1,27 @@
+# Node Modules
+node_modules/
+
+# d.ts
+typings/*
+!typings/generator
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Mac crap
+.DS_Store
+
+# Output Files
+.cache
+dist/
+input/*
+!input/input_files
+output/*
+!output/output_files
+
+#vscode
+.vscode
+
+#config
+config.json

@@ -1,0 +1,24 @@
+{
+    "middle": {
+        "defaultScale": 0.75,
+        "defaultQuality": 0.8,
+        "scaleSettings": [
+            {
+                "path": "image\\bg\\.*\\",
+                "scale": 0.5,
+                "quality": 0.4
+            }
+        ]
+    },
+    "low": {
+        "defaultScale": 0.5,
+        "defaultQuality": 0.8,
+        "scaleSettings": [
+            {
+                "path": "image\\bg\\.*\\",
+                "scale": 0.25,
+                "quality": 0.4
+            }
+        ]
+    }
+}
