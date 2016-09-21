@@ -1,18 +1,23 @@
+import * as Fs from 'fs-extra';
 import * as Imagemagick from 'imagemagick';
 import * as Progress from 'progress';
 import { REG_INPUT_DIR_PATH, PARALLEL_MAX_COUNT, OUTPUT_DIR_PATH } from './constants/generator';
-import { Config } from './loader';
-
+import { Config, Cache } from './loader';
+import { getStat } from './file';
 
 interface IResizeSettings {
     scale: number;
     quality: number;
 }
 
+interface ILoadedFeatures {
+    [filePath: string]: Imagemagick.Features;
+}
+
 /**
  * 入力ファイルのFeaturesのキャッシュ
  */
-let cacheloadedFeatures: { [filePath: string]: Imagemagick.Features } = {};
+let cacheloadedFeatures: ILoadedFeatures = {};
 
 /**
  * 画像の設定取得
@@ -46,13 +51,19 @@ function getResizeSettings(inputPath: string, settings: Config.ISettings): IResi
  * @returns {Promise<Imagemagick.Features>}
  */
 function getImageFeatures(inputPath: string): Promise<Imagemagick.Features> {
+    const loadedFeature = cacheloadedFeatures[inputPath];
     return new Promise<Imagemagick.Features>((resolve: (features: Imagemagick.Features) => void) => {
-        Imagemagick.identify(inputPath, (err: any, features: Imagemagick.Features) => {
-            if (err || !features) {
-                throw err;
-            }
-            resolve(features);
-        });
+        if (loadedFeature) {
+            resolve(loadedFeature);
+        } else {
+            Imagemagick.identify(inputPath, (err: any, features: Imagemagick.Features) => {
+                if (err || !features) {
+                    throw err;
+                }
+                cacheloadedFeatures[inputPath] = features;
+                resolve(features);
+            });
+        }
     });
 }
 
@@ -85,16 +96,55 @@ function resize(inputPath: string, outputPath: string, width: number, resizeSett
 }
 
 /**
+ * リサイズするか
+ * 
+ * @param {string} quality
+ * @param {string} inputPath
+ * @param {Imagemagick.Features} features
+ * @param {IResizeSettings} settings
+ * @param {Cache.ICache} cache
+ * @returns {boolean}
+ */
+function isResize(quality: string, inputPath: string, features: Imagemagick.Features, settings: IResizeSettings, cache: Cache.ICache): boolean {
+    const cacheData = cache[inputPath];
+    if (!cacheData) {
+        return true;
+    }
+
+    const stat = getStat(inputPath);
+    const updttime = stat.mtime.getTime();
+    if (updttime !== cacheData.updtTime) {
+        return true;
+    }
+
+    const cacheQualityData = cacheData.resizeData[quality];
+    if (!cacheQualityData) {
+        return true;
+    }
+
+    if (cacheQualityData.scale !== settings.scale) {
+        return true;
+    }
+
+    if (cacheQualityData.quality !== settings.quality) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
  * 作成
  * 
  * @export
  * @param {string} quality
  * @param {ISettings} settings
  * @param {string[]} inputPaths
- * @returns {Promise<void>}
+ * @param {Cache.ICache} cache
+ * @returns {Promise<Cache.ICache>}
  */
-export function generate(quality: string, settings: Config.ISettings, inputPaths: string[]): Promise<void> {
-    return new Promise<void>((resolve: () => void) => {
+export function generate(quality: string, settings: Config.ISettings, inputPaths: string[], cache: Cache.ICache): Promise<Cache.ICache> {
+    return new Promise<Cache.ICache>((resolve: (cache: Cache.ICache) => void) => {
         const progress = new Progress(
             `resized ${quality} [:bar] :percent :elapsed`,
             {
@@ -104,38 +154,51 @@ export function generate(quality: string, settings: Config.ISettings, inputPaths
                 incomplete: ' '
             }
         );
+        const updateCache = (quality: string, inputPath: string, settings: IResizeSettings): void => {
+            const stat = getStat(inputPath);
+            cache[inputPath] = {
+                updtTime: stat.mtime.getTime(),
+                resizeData: {
+                    [quality]: {
+                        scale: settings.scale,
+                        quality: settings.quality
+                    }
+                }
+            };
+        };
+        const execResize = (inputPath: string): Promise<void> => {
+            return new Promise<void>((res: () => void) => {
+                const outputPath = `${OUTPUT_DIR_PATH}/${quality}/${inputPath.replace(REG_INPUT_DIR_PATH, '')}`;
+                const resizeSettings = getResizeSettings(inputPath, settings);
+                getImageFeatures(inputPath)
+                    .then((features: Imagemagick.Features) => {
+                        if (isResize(quality, inputPath, features, resizeSettings, cache)) {
+                            resize(inputPath, outputPath, features.width, resizeSettings)
+                                .then(() => {
+                                    updateCache(quality, inputPath, resizeSettings);
+                                    progress.tick();
+                                    res();
+                                });
+                        } else {
+                            progress.tick();
+                            res();
+                        }
+                    })
+                    .catch((err: any) => {
+                        throw err;
+                    });
+            });
+        };
         const exec = (paths: string[]): Promise<void> => {
             const execPaths = paths.splice(0, PARALLEL_MAX_COUNT);
             return Promise.all<Promise<void>>(execPaths.map((inputPath: string) => {
-                return new Promise<void>((res: () => void) => {
-                    const outputPath = `${OUTPUT_DIR_PATH}/${quality}/${inputPath.replace(REG_INPUT_DIR_PATH, '')}`;
-                    const loadedFeature = cacheloadedFeatures[inputPath];
-                    const resizeSettings = getResizeSettings(inputPath, settings);
-                    if (loadedFeature) {
-                        resize(inputPath, outputPath, loadedFeature.width, resizeSettings)
-                            .then(() => {
-                                res();
-                            });
-                    } else {
-                        getImageFeatures(inputPath)
-                            .then((features: Imagemagick.Features) => {
-                                resize(inputPath, outputPath, features.width, resizeSettings)
-                                    .then(() => {
-                                        progress.tick();
-                                        res();
-                                    });
-                            })
-                            .catch((err: any) => {
-                                throw err;
-                            });
-                    }
-                });
+                return execResize(inputPath);
             }))
                 .then(() => {
                     if (paths.length > 0) {
                         exec(paths);
                     } else {
-                        resolve();
+                        resolve(cache);
                     }
                 })
                 .catch((err: any) => {

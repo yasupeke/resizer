@@ -10,7 +10,7 @@ import { OUTPUT_DIR_PATH, REG_INPUT_DIR_PATH } from './constants/generator';
  * @param {string[]} inputPaths
  * @returns {Promise<void>}
  */
-export function generateDir(quality: string, inputPaths: string[]): Promise<void> {
+export function createDir(quality: string, inputPaths: string[]): Promise<void> {
     let outputDirs: string[] = [];
     return new Promise<void>((resolve: () => void, reject: () => void) => {
         for (let i = 0, len = inputPaths.length; i < len; i++) {

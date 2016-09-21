@@ -3,7 +3,7 @@ import { CACHE_PATH, CONFIG_PATH } from './constants/generator';
 
 export module Config {
     export interface IQualitySettings {
-        [quality: number]: ISettings;
+        [quality: string]: ISettings;
     }
 
     export interface ISettings {
@@ -37,15 +37,29 @@ export module Config {
 }
 
 export module Cache {
+    export interface ICache {
+        [filePath: string]: IResizedData;
+    }
+
+    export interface IResizedData {
+        updtTime: number;
+        resizeData: { [quality: string]: IResize };
+    }
+
+    export interface IResize {
+        scale: number;
+        quality?: number;
+    }
+
     /**
      * キャッシュデータを読み込み
      * 
      * @export
-     * @returns {Promise<{ [filePath: string]: number }>}
+     * @returns {Promise<ICache>}
      */
-    export function read(): Promise<{ [filePath: string]: number }> {
-        return new Promise<{ [filePath: string]: number }>((resolve: (data: { [filePath: string]: number }) => void, reject: (err: any) => void) => {
-            Fs.readJSON(CACHE_PATH, 'utf-8', (err: NodeJS.ErrnoException, json: { [filePath: string]: number }) => {
+    export function read(): Promise<ICache> {
+        return new Promise<ICache>((resolve: (data: ICache) => void, reject: (err: any) => void) => {
+            Fs.readJSON(CACHE_PATH, 'utf-8', (err: NodeJS.ErrnoException, json: ICache) => {
                 if (err) {
                     json = {};
                 }
@@ -58,10 +72,10 @@ export module Cache {
      * キャッシュデータをファイルに書き込む
      * 
      * @export
-     * @param {{ [filePath: string]: number }} data
+     * @param {ICache} data
      * @returns {Promise<void>}
      */
-    export function write(data: { [filePath: string]: number }): Promise<void> {
+    export function write(data: ICache): Promise<void> {
         return new Promise<void>((resolve: () => void, reject: (err: any) => void) => {
             Fs.writeJSON(CACHE_PATH, data, (err: NodeJS.ErrnoException) => {
                 if (err) {
