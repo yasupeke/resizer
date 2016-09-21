@@ -2,8 +2,7 @@
 node_modules/
 
 # d.ts
-typings/*
-!typings/generator
+typings
 
 # Windows image file caches
 Thumbs.db

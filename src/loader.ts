@@ -2,6 +2,22 @@ import * as Fs from 'fs-extra';
 import { CACHE_PATH, CONFIG_PATH } from './constants/generator';
 
 export module Config {
+    export interface IQualitySettings {
+        [quality: number]: ISettings;
+    }
+
+    export interface ISettings {
+        defaultScale: number;
+        defaultQuality?: number;
+        scaleSettings?: IScaleSettings[];
+    }
+
+    export interface IScaleSettings {
+        path: string;
+        scale: number;
+        quality?: number;
+    }
+
     /**
      * 設定データを読み込み
      * 

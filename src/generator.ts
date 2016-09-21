@@ -1,6 +1,7 @@
 import * as Imagemagick from 'imagemagick';
 import * as Progress from 'progress';
 import { REG_INPUT_DIR_PATH, PARALLEL_MAX_COUNT, OUTPUT_DIR_PATH } from './constants/generator';
+import { Config } from './loader';
 
 
 interface IResizeSettings {
@@ -20,13 +21,13 @@ let cacheloadedFeatures: { [filePath: string]: Imagemagick.Features } = {};
  * @param {ISettings} settings
  * @returns {IResizeSettings}
  */
-function getResizeSettings(inputPath: string, settings: ISettings): IResizeSettings {
+function getResizeSettings(inputPath: string, settings: Config.ISettings): IResizeSettings {
     let setting: IResizeSettings = {
         scale: settings.defaultScale,
         quality: settings.defaultQuality
     };
     if (settings.scaleSettings) {
-        settings.scaleSettings.some((scaleSetting: IScaleSettings) => {
+        settings.scaleSettings.some((scaleSetting: Config.IScaleSettings) => {
             if (!new RegExp(scaleSetting.path.replace(/\\/g, '\\\\')).test(inputPath)) return false;
             setting = {
                 scale: scaleSetting.scale,
@@ -92,7 +93,7 @@ function resize(inputPath: string, outputPath: string, width: number, resizeSett
  * @param {string[]} inputPaths
  * @returns {Promise<void>}
  */
-export function generate(quality: string, settings: ISettings, inputPaths: string[]): Promise<void> {
+export function generate(quality: string, settings: Config.ISettings, inputPaths: string[]): Promise<void> {
     return new Promise<void>((resolve: () => void) => {
         const progress = new Progress(
             `resized ${quality} [:bar] :percent :elapsed`,
