@@ -1,18 +1,21 @@
 import * as Fs from 'fs-extra';
-import { CACHE_PATH, CONFIG_PATH } from './constants/generator';
+import { DEFAULT_CACHE_PATH, DEFAULT_CONFIG_PATH } from './constants/generator';
 
 export module Config {
-    export interface IQualitySettings {
-        [quality: string]: ISettings;
+    export interface IConfig { 
+        inputPath: string;
+        outputPath: string;
+        qualitySettings: { [quality: string]: IQualitySetting };
     }
 
-    export interface ISettings {
+    export interface IQualitySetting {
         defaultScale: number;
         defaultQuality?: number;
-        scaleSettings?: IScaleSettings[];
+        scaleSettings?: IScaleSetting[];
+        ignoreSettings?: string[];
     }
 
-    export interface IScaleSettings {
+    export interface IScaleSetting {
         path: string;
         scale: number;
         quality?: number;
@@ -22,14 +25,16 @@ export module Config {
      * 設定データを読み込み
      * 
      * @export
-     * @returns {Promise<IQualitySettings>}
+     * @returns {Promise<IConfig>}
      */
-    export function read(): Promise<IQualitySettings> {
-        return new Promise<IQualitySettings>((resolve: (data: IQualitySettings) => void, reject: (err: any) => void) => {
-            Fs.readJSON(CONFIG_PATH, 'utf-8', (err: NodeJS.ErrnoException, json: IQualitySettings) => {
+    export function read(): Promise<IConfig> {
+        return new Promise<IConfig>((resolve: (data: IConfig) => void, reject: (err: any) => void) => {
+            Fs.readJSON(DEFAULT_CONFIG_PATH, 'utf-8', (err: NodeJS.ErrnoException, json: IConfig) => {
                 if (err) {
-                    json = {};
+                    reject(err);
                 }
+                json.inputPath = `../${json.inputPath}`; 
+                json.outputPath = `../${json.outputPath}`; 
                 resolve(json);
             });
         });
@@ -59,7 +64,7 @@ export module Cache {
      */
     export function read(): Promise<ICache> {
         return new Promise<ICache>((resolve: (data: ICache) => void, reject: (err: any) => void) => {
-            Fs.readJSON(CACHE_PATH, 'utf-8', (err: NodeJS.ErrnoException, json: ICache) => {
+            Fs.readJSON(DEFAULT_CACHE_PATH, 'utf-8', (err: NodeJS.ErrnoException, json: ICache) => {
                 if (err) {
                     json = {};
                 }
@@ -77,7 +82,7 @@ export module Cache {
      */
     export function write(data: ICache): Promise<void> {
         return new Promise<void>((resolve: () => void, reject: (err: any) => void) => {
-            Fs.writeJSON(CACHE_PATH, data, (err: NodeJS.ErrnoException) => {
+            Fs.writeJSON(DEFAULT_CACHE_PATH, data, (err: NodeJS.ErrnoException) => {
                 if (err) {
                     reject(err);
                     console.error('errorだよ');

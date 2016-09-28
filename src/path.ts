@@ -29,7 +29,7 @@ export function getInputPaths(inputDir: string): Promise<string[]> {
                 }
             }
         }
-        searchFile(inputDir);
+        searchFile(Path.join(__dirname, inputDir));
         resolve(filePaths);
     });
 };
